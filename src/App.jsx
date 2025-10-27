@@ -28,8 +28,8 @@ const App = () => {
 
   const extractPageNumber = (url) => {
     // Match page query parameters like ?page=5 or /page-5/
-    const pageMatch = url.match(/(?:page[=-]?|p=)(\d+)/i);
-    return pageMatch ? parseInt(pageMatch[1]) : 1;
+    const pageMatch = url.match(/(?:page[=-]?|p=)(\d+)|page-(\d+)/i);
+    return pageMatch ? parseInt(pageMatch[1] || pageMatch[2]) : 1;
   };
 
   const getNextPageUrl = (url, page) => {
@@ -39,14 +39,15 @@ const App = () => {
       return url.replace(/page=\d+/i, `page=${page}`);
     } else if (url.includes('/page-')) {
       // For URLs like /page-5/
-      return url.replace(/\/page-\d+\//i, `/page-${page}/`);
+      return url.replace(/\/page-\d+(\/|$)/i, `/page-${page}$1`);
     } else if (url.includes('page/')) {
       // For URLs like /page/5/
       return url.replace(/\/page\/\d+\//i, `/page/${page}/`);
     } else {
       // For URLs without page parameter, add it
-      const separator = url.includes('?') ? '&' : '?';
-      return `${url}${separator}page=${page}`;
+      // If URL ends with a slash, add page-1, otherwise add /page-1
+      const separator = url.endsWith('/') ? '' : '/';
+      return `${url}${separator}page-${page}`;
     }
   };
 
@@ -110,7 +111,7 @@ const App = () => {
       setCurrentPage(nextPage);
       fetchImages(nextPage, false);
     }
-  }, [hasMorePages, currentPage, url]);
+  }, [hasMorePages, currentPage, url, fetchImages]);
 
   const lastImageElementRef = useCallback(
     (node) => {
@@ -120,6 +121,8 @@ const App = () => {
       observer.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && hasMorePages) {
           loadMoreImages();
+          // Disconnect after triggering to prevent multiple calls
+          observer.current.disconnect();
         }
       }, {
         threshold: 0.1
