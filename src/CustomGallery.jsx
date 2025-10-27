@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import LightboxViewer from './LightboxViewer';
 
-const CustomGallery = ({ images = [], columns = 3 }) => {
+const CustomGallery = ({ images = [], columns = 3, hasMore = false, loadMore, lastImageElementRef }) => {
   const [viewerIsOpen, setViewerIsOpen] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
 
@@ -40,6 +40,7 @@ const CustomGallery = ({ images = [], columns = 3 }) => {
             key={index}
             className="mb-4 break-inside-avoid border border-[var(--card-border)] bg-[var(--card-bg)] rounded-lg overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
             onClick={() => openLightbox(index)}
+            ref={index === flattenedImages.length - 1 ? lastImageElementRef : null}
           >
             <img
               src={src}
@@ -50,6 +51,14 @@ const CustomGallery = ({ images = [], columns = 3 }) => {
           </div>
         ))}
       </div>
+
+      {/* Loading indicator */}
+      {hasMore && (
+        <div className="text-center py-4">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <p className="mt-2">Loading more images...</p>
+        </div>
+      )}
 
       {/* Lightbox */}
       {viewerIsOpen && (

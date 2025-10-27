@@ -11,12 +11,11 @@ const App = () => {
   const [filter, setFilter] = useState({
     jpg: true, png: true, gif: true, webp: true, svg: true, bmp: true, tiff: true
   });
-  const [visibleImagesCount, setVisibleImagesCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMorePages, setHasMorePages] = useState(false);
 
-  const currentPage = useRef(0);
+  const observer = useRef();
   const allExtractedImages = useRef([]);
-
-  const imagesPerPage = 20;
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -27,16 +26,44 @@ const App = () => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
-  const fetchImages = async (page = 0) => {
+  const extractPageNumber = (url) => {
+    // Match page query parameters like ?page=5 or /page-5/
+    const pageMatch = url.match(/(?:page[=-]?|p=)(\d+)/i);
+    return pageMatch ? parseInt(pageMatch[1]) : 1;
+  };
+
+  const getNextPageUrl = (url, page) => {
+    // Handle different URL patterns for pagination
+    if (url.includes('page=')) {
+      // For URLs like ?page=5 or &page=5
+      return url.replace(/page=\d+/i, `page=${page}`);
+    } else if (url.includes('/page-')) {
+      // For URLs like /page-5/
+      return url.replace(/\/page-\d+\//i, `/page-${page}/`);
+    } else if (url.includes('page/')) {
+      // For URLs like /page/5/
+      return url.replace(/\/page\/\d+\//i, `/page/${page}/`);
+    } else {
+      // For URLs without page parameter, add it
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}page=${page}`;
+    }
+  };
+
+  const fetchImages = async (page = 1, isInitialLoad = true) => {
     if (loading || !url) return;
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/extract-images?url=${encodeURIComponent(url)}`);
+      // Use the page parameter to get the correct URL
+      const pageUrl = getNextPageUrl(url, page);
+      const response = await fetch(`/api/extract-images?url=${encodeURIComponent(pageUrl)}`);
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
       const data = await response.json();
 
       // Ensure data is an array
@@ -55,43 +82,52 @@ const App = () => {
         }
       });
 
-      allExtractedImages.current = validImages;
-      currentPage.current = 0;
-      const initialImages = allExtractedImages.current.slice(0, imagesPerPage);
-      setImages(initialImages);
-      setVisibleImagesCount(initialImages.length);
+      if (isInitialLoad) {
+        // For initial load, replace all images
+        allExtractedImages.current = validImages;
+        setImages(validImages);
+        // Check if there might be more pages
+        setHasMorePages(validImages.length > 0);
+      } else {
+        // For subsequent loads, append new images
+        allExtractedImages.current = [...allExtractedImages.current, ...validImages];
+        setImages(prevImages => [...prevImages, ...validImages]);
+        // Update hasMorePages based on whether we got new images
+        setHasMorePages(validImages.length > 0);
+      }
     } catch (e) {
       setError(e.message);
       console.error("Error fetching images:", e);
+      setHasMorePages(false);
     } finally {
       setLoading(false);
     }
   };
 
   const loadMoreImages = useCallback(() => {
-    const nextPage = currentPage.current + 1;
-    const startIndex = nextPage * imagesPerPage;
-    const newImages = allExtractedImages.current.slice(startIndex, startIndex + imagesPerPage);
-
-    if (newImages.length > 0) {
-      setImages((prevImages) => [...prevImages, ...newImages]);
-      currentPage.current = nextPage;
-      setVisibleImagesCount((prevCount) => prevCount + newImages.length);
+    if (hasMorePages) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchImages(nextPage, false);
     }
-  }, []);
+  }, [hasMorePages, currentPage, url]);
 
   const lastImageElementRef = useCallback(
     (node) => {
       if (loading) return;
       if (observer.current) observer.current.disconnect();
+
       observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && images.length < allExtractedImages.current.length) {
+        if (entries[0].isIntersecting && hasMorePages) {
           loadMoreImages();
         }
+      }, {
+        threshold: 0.1
       });
+
       if (node) observer.current.observe(node);
     },
-    [loading, loadMoreImages, images.length]
+    [loading, loadMoreImages, hasMorePages]
   );
 
   const filteredImages = images.filter(imgUrl => {
@@ -123,7 +159,12 @@ const App = () => {
           placeholder="Enter website URL (e.g., https://example.com)"
           className="flex-grow p-2.5 border border-[var(--input-border)] rounded-md bg-[var(--input-bg)] text-[var(--text-color)]"
         />
-        <button onClick={() => fetchImages()} disabled={loading} className="px-4 py-2.5 bg-[var(--button-bg)] text-[var(--button-text)] border-none rounded-md cursor-pointer transition-colors duration-200 ease-in-out hover:bg-[var(--button-hover-bg)] disabled:opacity-60 disabled:cursor-not-allowed">
+        <button onClick={() => {
+          // Extract page number from URL if present
+          const initialPage = extractPageNumber(url);
+          setCurrentPage(initialPage);
+          fetchImages(initialPage);
+        }} disabled={loading} className="px-4 py-2.5 bg-[var(--button-bg)] text-[var(--button-text)] border-none rounded-md cursor-pointer transition-colors duration-200 ease-in-out hover:bg-[var(--button-hover-bg)] disabled:opacity-60 disabled:cursor-not-allowed">
           {loading ? 'Fetching...' : 'Fetch Images'}
         </button>
       </div>
@@ -132,7 +173,7 @@ const App = () => {
 
       {images.length > 0 && (
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 flex-wrap gap-2.5">
-          <p>Showing {visibleImagesCount} of {allExtractedImages.current.length} images</p>
+          <p>Showing {images.length} images from page {currentPage}</p>
           <div className="flex items-center gap-2.5">
             <label htmlFor="columns">Columns:</label>
             <input
@@ -161,11 +202,12 @@ const App = () => {
       )}
 
       {images.length > 0 && (
-        <CustomGallery 
+        <CustomGallery
           images={filteredImages}
           columns={columns}
           loadMore={loadMoreImages}
-          hasMore={visibleImagesCount < allExtractedImages.current.length}
+          hasMore={hasMorePages}
+          lastImageElementRef={lastImageElementRef}
         />
       )}
     </div>
