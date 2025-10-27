@@ -1,59 +1,64 @@
-import React, { useState, useCallback } from 'react';
-import InfiniteScroll from 'react-infinite-scroll-component';
+import React, { useState, useCallback, useEffect } from 'react';
 import LightboxViewer from './LightboxViewer';
 
-const CustomGallery = ({ images, columns, loadMore, hasMore }) => {
-  const [currentImage, setCurrentImage] = useState(0);
+const CustomGallery = ({ images = [] }) => {
   const [viewerIsOpen, setViewerIsOpen] = useState(false);
+  const [currentImage, setCurrentImage] = useState(0);
+  const [columns, setColumns] = useState(2);
 
-  // Check if images is defined and is an array
-  if (!images || !Array.isArray(images) || images.length === 0) {
-    return <div>No images to display</div>;
-  }
+  // --- Responsive column count ---
+  useEffect(() => {
+    const updateColumns = () => {
+      const width = window.innerWidth;
+      if (width < 640) setColumns(1);
+      else if (width < 1024) setColumns(2);
+      else setColumns(3);
+    };
+    updateColumns();
+    window.addEventListener('resize', updateColumns);
+    return () => window.removeEventListener('resize', updateColumns);
+  }, []);
 
+  // --- Lightbox controls ---
   const openLightbox = useCallback((index) => {
     setCurrentImage(index);
     setViewerIsOpen(true);
   }, []);
 
-  const closeLightbox = () => {
-    setViewerIsOpen(false);
-  };
+  const closeLightbox = () => setViewerIsOpen(false);
 
-  // Calculate grid template columns based on the number of columns
-  const gridTemplateColumns = `repeat(${columns}, 1fr)`;
+  // --- Handle empty state ---
+  if (!images || !Array.isArray(images) || images.length === 0) {
+    return <div className="text-center py-8 text-gray-500">No images to display</div>;
+  }
 
   return (
-    <div className="gallery-container">
-      <InfiniteScroll
-        dataLength={images.length}
-        next={loadMore}
-        hasMore={hasMore}
-        loader={<h4 className="text-center py-4">Loading...</h4>}
-        endMessage={
-          <p className="text-center py-4">
-            <b>Yay! You have seen it all</b>
-          </p>
-        }
+    <div className="gallery-container w-full mx-auto p-2">
+      {/* Masonry layout using CSS columns */}
+      <div
+        className="masonry"
+        style={{
+          columnCount: columns,
+          columnGap: '1rem',
+        }}
       >
-        <div className="grid gap-4" style={{ gridTemplateColumns }}>
-          {images.map((image, index) => (
-            <div
-              key={index}
-              className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg overflow-hidden shadow-md transition-transform duration-200 ease-in-out hover:-translate-y-1"
-              onClick={() => openLightbox(index)}
-            >
-              <img
-                src={image}
-                alt={`Gallery image ${index}`}
-                loading="lazy"
-                className="w-full h-auto object-cover block cursor-pointer"
-              />
-            </div>
-          ))}
-        </div>
-      </InfiniteScroll>
+        {images.map((src, index) => (
+          <div
+            key={index}
+            className="mb-4 break-inside-avoid border border-[var(--card-border)] bg-[var(--card-bg)] rounded-lg overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
+            onClick={() => openLightbox(index)}
+          >
+            <img
+              src={src}
+              alt={`Gallery image ${index}`}
+              loading="lazy"
+              className="w-full h-auto object-contain block"
+            />
+          </div>
+        ))}
+      </div>
 
+      {/* Lightbox */}
       {viewerIsOpen && (
         <LightboxViewer
           images={images}
