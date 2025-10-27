@@ -57,8 +57,9 @@ const App = () => {
 
       allExtractedImages.current = validImages;
       currentPage.current = 0;
-      setImages(allExtractedImages.current.slice(0, imagesPerPage));
-      setVisibleImagesCount(Math.min(imagesPerPage, allExtractedImages.current.length));
+      const initialImages = allExtractedImages.current.slice(0, imagesPerPage);
+      setImages(initialImages);
+      setVisibleImagesCount(initialImages.length);
     } catch (e) {
       setError(e.message);
       console.error("Error fetching images:", e);

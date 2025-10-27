@@ -1,23 +1,11 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import LightboxViewer from './LightboxViewer';
 
-const CustomGallery = ({ images = [] }) => {
+const CustomGallery = ({ images = [], columns = 3 }) => {
   const [viewerIsOpen, setViewerIsOpen] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
-  const [columns, setColumns] = useState(2);
 
-  // --- Responsive column count ---
-  useEffect(() => {
-    const updateColumns = () => {
-      const width = window.innerWidth;
-      if (width < 640) setColumns(1);
-      else if (width < 1024) setColumns(2);
-      else setColumns(3);
-    };
-    updateColumns();
-    window.addEventListener('resize', updateColumns);
-    return () => window.removeEventListener('resize', updateColumns);
-  }, []);
+  // Remove the internal columns state and use the prop instead
 
   // --- Lightbox controls ---
   const openLightbox = useCallback((index) => {
@@ -27,8 +15,13 @@ const CustomGallery = ({ images = [] }) => {
 
   const closeLightbox = () => setViewerIsOpen(false);
 
+  // Flatten nested arrays to handle both flat and nested image structures
+  const flattenedImages = Array.isArray(images[0])
+    ? images.flat()
+    : images;
+
   // --- Handle empty state ---
-  if (!images || !Array.isArray(images) || images.length === 0) {
+  if (!flattenedImages || !Array.isArray(flattenedImages) || flattenedImages.length === 0) {
     return <div className="text-center py-8 text-gray-500">No images to display</div>;
   }
 
@@ -42,7 +35,7 @@ const CustomGallery = ({ images = [] }) => {
           columnGap: '1rem',
         }}
       >
-        {images.map((src, index) => (
+        {flattenedImages.map((src, index) => (
           <div
             key={index}
             className="mb-4 break-inside-avoid border border-[var(--card-border)] bg-[var(--card-bg)] rounded-lg overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
@@ -61,7 +54,7 @@ const CustomGallery = ({ images = [] }) => {
       {/* Lightbox */}
       {viewerIsOpen && (
         <LightboxViewer
-          images={images}
+          images={flattenedImages}
           currentImage={currentImage}
           setCurrentImage={setCurrentImage}
           closeLightbox={closeLightbox}
