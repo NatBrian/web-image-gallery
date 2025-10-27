@@ -5,9 +5,66 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>web-image-gallery</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style type="text/tailwindcss">
+      @layer base {
+        :root {
+          --background-color: #ffffff;
+          --text-color: #333333;
+          --header-bg: #f0f0f0;
+          --input-bg: #ffffff;
+          --input-border: #cccccc;
+          --button-bg: #007bff;
+          --button-text: #ffffff;
+          --button-hover-bg: #0056b3;
+          --card-bg: #f9f9f9;
+          --card-border: #eeeeee;
+          --error-color: #dc3545;
+        }
+
+        [data-theme='dark'] {
+          --background-color: #282c34;
+          --text-color: #e0e0e0;
+          --header-bg: #20232a;
+          --input-bg: #3a3f47;
+          --input-border: #555555;
+          --button-bg: #61dafb;
+          --button-text: #282c34;
+          --button-hover-bg: #21a1f1;
+          --card-bg: #3a3f47;
+          --card-border: #444444;
+          --error-color: #ff6b6b;
+        }
+      }
+    </style>
+    <style type="text/tailwindcss">
+      @layer base {
+        body {
+          @apply m-0 font-sans antialiased transition-colors duration-300 ease-in-out;
+        }
+        #root {
+          @apply max-w-screen-xl mx-auto p-8 text-center;
+        }
+      }
+
+     @keyframes logo-spin {
+       from {
+         transform: rotate(0deg);
+       }
+       to {
+         transform: rotate(360deg);
+       }
+     }
+
+     @media (prefers-reduced-motion: no-preference) {
+       a:nth-of-type(2) .logo {
+         animation: logo-spin infinite 20s linear;
+       }
+     }
+   </style>
+ </head>
+ <body>
+   <div id="root"></div>
+   <script type="module" src="/src/main.jsx"></script>
+ </body>
 </html>

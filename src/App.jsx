@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import './App.css';
-import './styles.css'; // Custom styles
 
 const App = () => {
   const [url, setUrl] = useState('');
@@ -115,11 +113,11 @@ const App = () => {
   }, [fullscreenImage, navigateFullscreen]);
 
   return (
-    <div className="app-container">
-      <header className="header">
-        <h1>Image Gallery Scraper</h1>
-        <div className="theme-switcher">
-          <label htmlFor="theme-toggle">Dark Mode</label>
+    <div className="min-h-screen p-5 box-border transition-colors duration-300 ease-in-out bg-[var(--background-color)] text-[var(--text-color)]">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 border-b border-[var(--card-border)] mb-5 bg-[var(--header-bg)] rounded-lg">
+        <h1 className="text-2xl font-bold m-0">Image Gallery Scraper</h1>
+        <div className="flex items-center mt-3 sm:mt-0">
+          <label htmlFor="theme-toggle" className="mr-2">Dark Mode</label>
           <input
             type="checkbox"
             id="theme-toggle"
@@ -129,25 +127,25 @@ const App = () => {
         </div>
       </header>
 
-      <div className="controls">
+      <div className="flex flex-col sm:flex-row gap-2.5 mb-5">
         <input
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="Enter website URL (e.g., https://example.com)"
-          className="url-input"
+          className="flex-grow p-2.5 border border-[var(--input-border)] rounded-md bg-[var(--input-bg)] text-[var(--text-color)]"
         />
-        <button onClick={() => fetchImages()} disabled={loading} className="fetch-button">
+        <button onClick={() => fetchImages()} disabled={loading} className="px-4 py-2.5 bg-[var(--button-bg)] text-[var(--button-text)] border-none rounded-md cursor-pointer transition-colors duration-200 ease-in-out hover:bg-[var(--button-hover-bg)] disabled:opacity-60 disabled:cursor-not-allowed">
           {loading ? 'Fetching...' : 'Fetch Images'}
         </button>
       </div>
 
-      {error && <p className="error-message">Error: {error}</p>}
+      {error && <p className="text-[var(--error-color)] mb-5">Error: {error}</p>}
 
       {images.length > 0 && (
-        <div className="gallery-info">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 flex-wrap gap-2.5">
           <p>Showing {visibleImagesCount} of {allExtractedImages.current.length} images</p>
-          <div className="column-control">
+          <div className="flex items-center gap-2.5">
             <label htmlFor="columns">Columns:</label>
             <input
               type="range"
@@ -159,9 +157,9 @@ const App = () => {
             />
             <span>{columns}</span>
           </div>
-          <div className="filter-controls">
+          <div className="flex items-center gap-2.5">
             {Object.keys(filter).map(ext => (
-              <label key={ext}>
+              <label key={ext} className="flex items-center gap-1.5">
                 <input
                   type="checkbox"
                   checked={filter[ext]}
@@ -174,27 +172,29 @@ const App = () => {
         </div>
       )}
 
-      <div className="image-grid" style={{ '--columns': columns }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
         {filteredImages.map((image, index) => {
           if (filteredImages.length === index + 1) {
             return (
-              <div ref={lastImageElementRef} key={index} className="image-item">
+              <div ref={lastImageElementRef} key={index} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg overflow-hidden shadow-md transition-transform duration-200 ease-in-out hover:-translate-y-1">
                 <img
                   src={image}
                   alt={`Scraped image ${index}`}
                   loading="lazy"
                   onClick={() => openFullscreen(image)}
+                  className="w-full object-cover block cursor-pointer"
                 />
               </div>
             );
           } else {
             return (
-              <div key={index} className="image-item">
+              <div key={index} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg overflow-hidden shadow-md transition-transform duration-200 ease-in-out hover:-translate-y-1">
                 <img
                   src={image}
                   alt={`Scraped image ${index}`}
                   loading="lazy"
                   onClick={() => openFullscreen(image)}
+                  className="w-full object-cover block cursor-pointer"
                 />
               </div>
             );
@@ -203,11 +203,11 @@ const App = () => {
       </div>
 
       {fullscreenImage && (
-        <div className="fullscreen-viewer" onClick={closeFullscreen}>
-          <button className="close-button" onClick={closeFullscreen}>&times;</button>
-          <button className="nav-button left" onClick={(e) => { e.stopPropagation(); navigateFullscreen('left'); }}>&#10094;</button>
-          <img src={fullscreenImage} alt="Fullscreen" onClick={(e) => e.stopPropagation()} />
-          <button className="nav-button right" onClick={(e) => { e.stopPropagation(); navigateFullscreen('right'); }}>&#10095;</button>
+        <div className="fixed inset-0 w-screen h-screen bg-black bg-opacity-90 flex justify-center items-center z-50" onClick={closeFullscreen}>
+          <button className="absolute top-5 right-5 bg-none border-none text-white text-4xl cursor-pointer" onClick={closeFullscreen}>&times;</button>
+          <button className="absolute top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white border-none px-4 py-2.5 cursor-pointer text-2xl left-2.5" onClick={(e) => { e.stopPropagation(); navigateFullscreen('left'); }}>&#10094;</button>
+          <img src={fullscreenImage} alt="Fullscreen" onClick={(e) => e.stopPropagation()} className="max-w-[90%] max-h-[90%] object-contain" />
+          <button className="absolute top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white border-none px-4 py-2.5 cursor-pointer text-2xl right-2.5" onClick={(e) => { e.stopPropagation(); navigateFullscreen('right'); }}>&#10095;</button>
         </div>
       )}
     </div>
