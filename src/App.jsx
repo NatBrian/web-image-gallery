@@ -27,28 +27,82 @@ const App = () => {
   };
 
   const extractPageNumber = (url) => {
-    // Match page query parameters like ?page=5 or /page-5/
-    const pageMatch = url.match(/(?:page[=-]?|p=)(\d+)|page-(\d+)/i);
-    return pageMatch ? parseInt(pageMatch[1] || pageMatch[2]) : 1;
+    const patterns = [
+      /[?&](?:page|p|pg|pageno|pageNumber)=(\d+)/i,        // ?page=2, &pageno=3
+      /\/(?:page|p|pg)[=/\-]?(\d+)(\/|$)/i,                 // /page/2/, /page-2/
+      /[?&](?:start|offset|skip)=(\d+)/i,                   // ?start=20 (Google-style)
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return parseInt(match[1], 10);
+    }
+
+    // Default to 1 if no pagination info found
+    return 1;
   };
 
-  const getNextPageUrl = (url, page) => {
-    // Handle different URL patterns for pagination
-    if (url.includes('page=')) {
-      // For URLs like ?page=5 or &page=5
-      return url.replace(/page=\d+/i, `page=${page}`);
-    } else if (url.includes('/page-')) {
-      // For URLs like /page-5/
-      return url.replace(/\/page-\d+(\/|$)/i, `/page-${page}$1`);
-    } else if (url.includes('page/')) {
-      // For URLs like /page/5/
-      return url.replace(/\/page\/\d+\//i, `/page/${page}/`);
-    } else {
-      // For URLs without page parameter, add it
-      // If URL ends with a slash, add page-1, otherwise add /page-1
-      const separator = url.endsWith('/') ? '' : '/';
-      return `${url}${separator}page-${page}`;
+  const getNextPageUrl = (url, nextPage) => {
+    let newUrl = url;
+
+    // 1️⃣ Case: Query param pattern (?page=2)
+    if (/[?&]page=\d+/i.test(url)) {
+      newUrl = url.replace(/([?&]page=)\d+/i, `$1${nextPage}`);
+    } 
+    else if (/[?&]p=\d+/i.test(url)) {
+      newUrl = url.replace(/([?&]p=)\d+/i, `$1${nextPage}`);
+    } 
+    else if (/[?&]pg=\d+/i.test(url)) {
+      newUrl = url.replace(/([?&]pg=)\d+/i, `$1${nextPage}`);
+    } 
+    else if (/[?&]pageno=\d+/i.test(url)) {
+      newUrl = url.replace(/([?&]pageno=)\d+/i, `$1${nextPage}`);
+    } 
+    else if (/[?&]pageNumber=\d+/i.test(url)) {
+      newUrl = url.replace(/([?&]pageNumber=)\d+/i, `$1${nextPage}`);
     }
+
+    // 2️⃣ Case: Path-based (/page/2/ or /page-2/)
+    else if (/\/page[=/\-]\d+/i.test(url)) {
+      newUrl = url.replace(/\/page[=/\-]\d+/i, `/page-${nextPage}`);
+    } 
+    else if (/\/p[=/\-]\d+/i.test(url)) {
+      newUrl = url.replace(/\/p[=/\-]\d+/i, `/p-${nextPage}`);
+    } 
+    else if (/\/page\/\d+\//i.test(url)) {
+      newUrl = url.replace(/\/page\/\d+\//i, `/page/${nextPage}/`);
+    }
+
+    // 3️⃣ Case: Offset-based (?start=20, ?offset=40)
+    else if (/[?&]start=\d+/i.test(url)) {
+      const current = parseInt(url.match(/[?&]start=(\d+)/i)[1], 10);
+      const newStart = current + 10; // assumes 10 items per page
+      newUrl = url.replace(/([?&]start=)\d+/i, `$1${newStart}`);
+    } 
+    else if (/[?&]offset=\d+/i.test(url)) {
+      const current = parseInt(url.match(/[?&]offset=(\d+)/i)[1], 10);
+      const newOffset = current + 10;
+      newUrl = url.replace(/([?&]offset=)\d+/i, `$1${newOffset}`);
+    } 
+    else if (/[?&]skip=\d+/i.test(url)) {
+      const current = parseInt(url.match(/[?&]skip=(\d+)/i)[1], 10);
+      const newSkip = current + 10;
+      newUrl = url.replace(/([?&]skip=)\d+/i, `$1${newSkip}`);
+    }
+
+    // 4️⃣ Case: No pagination found — append a default pattern
+    else {
+      const separator = url.includes('?') ? '&' : (url.endsWith('/') ? '' : '/');
+      if (url.includes('=')) {
+        // If existing query params present but no pagination param
+        newUrl = `${url}${separator}page=${nextPage}`;
+      } else {
+        // Clean REST-style fallback
+        newUrl = `${url}${separator}page-${nextPage}`;
+      }
+    }
+
+    return newUrl;
   };
 
   const fetchImages = async (page = 1, isInitialLoad = true) => {
