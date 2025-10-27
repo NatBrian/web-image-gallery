@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import CustomGallery from './CustomGallery';
 
 const App = () => {
   const [url, setUrl] = useState('');
@@ -7,13 +8,11 @@ const App = () => {
   const [error, setError] = useState(null);
   const [columns, setColumns] = useState(3);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
-  const [fullscreenImage, setFullscreenImage] = useState(null);
   const [filter, setFilter] = useState({
     jpg: true, png: true, gif: true, webp: true, svg: true, bmp: true, tiff: true
   });
   const [visibleImagesCount, setVisibleImagesCount] = useState(0);
 
-  const observer = useRef();
   const currentPage = useRef(0);
   const allExtractedImages = useRef([]);
 
@@ -29,7 +28,7 @@ const App = () => {
   };
 
   const fetchImages = async (page = 0) => {
-    if (loading) return;
+    if (loading || !url) return;
     setLoading(true);
     setError(null);
 
@@ -39,12 +38,30 @@ const App = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      allExtractedImages.current = data;
+
+      // Ensure data is an array
+      if (!Array.isArray(data)) {
+        throw new Error("Invalid response format: expected an array of image URLs");
+      }
+
+      // Filter out any invalid URLs
+      const validImages = data.filter(url => {
+        try {
+          new URL(url);
+          return true;
+        } catch (e) {
+          console.warn(`Invalid URL: ${url}`);
+          return false;
+        }
+      });
+
+      allExtractedImages.current = validImages;
       currentPage.current = 0;
       setImages(allExtractedImages.current.slice(0, imagesPerPage));
       setVisibleImagesCount(Math.min(imagesPerPage, allExtractedImages.current.length));
     } catch (e) {
       setError(e.message);
+      console.error("Error fetching images:", e);
     } finally {
       setLoading(false);
     }
@@ -81,36 +98,6 @@ const App = () => {
     return filter[ext];
   });
 
-  const openFullscreen = (imageSrc) => {
-    setFullscreenImage(imageSrc);
-  };
-
-  const closeFullscreen = () => {
-    setFullscreenImage(null);
-  };
-
-  const navigateFullscreen = (direction) => {
-    const currentIndex = filteredImages.indexOf(fullscreenImage);
-    if (direction === 'left') {
-      const prevIndex = (currentIndex - 1 + filteredImages.length) % filteredImages.length;
-      setFullscreenImage(filteredImages[prevIndex]);
-    } else {
-      const nextIndex = (currentIndex + 1) % filteredImages.length;
-      setFullscreenImage(filteredImages[nextIndex]);
-    }
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (fullscreenImage) {
-        if (e.key === 'Escape') closeFullscreen();
-        if (e.key === 'ArrowLeft') navigateFullscreen('left');
-        if (e.key === 'ArrowRight') navigateFullscreen('right');
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fullscreenImage, navigateFullscreen]);
 
   return (
     <div className="min-h-screen p-5 box-border transition-colors duration-300 ease-in-out bg-[var(--background-color)] text-[var(--text-color)]">
@@ -172,43 +159,13 @@ const App = () => {
         </div>
       )}
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
-        {filteredImages.map((image, index) => {
-          if (filteredImages.length === index + 1) {
-            return (
-              <div ref={lastImageElementRef} key={index} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg overflow-hidden shadow-md transition-transform duration-200 ease-in-out hover:-translate-y-1">
-                <img
-                  src={image}
-                  alt={`Scraped image ${index}`}
-                  loading="lazy"
-                  onClick={() => openFullscreen(image)}
-                  className="w-full object-cover block cursor-pointer"
-                />
-              </div>
-            );
-          } else {
-            return (
-              <div key={index} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg overflow-hidden shadow-md transition-transform duration-200 ease-in-out hover:-translate-y-1">
-                <img
-                  src={image}
-                  alt={`Scraped image ${index}`}
-                  loading="lazy"
-                  onClick={() => openFullscreen(image)}
-                  className="w-full object-cover block cursor-pointer"
-                />
-              </div>
-            );
-          }
-        })}
-      </div>
-
-      {fullscreenImage && (
-        <div className="fixed inset-0 w-screen h-screen bg-black bg-opacity-90 flex justify-center items-center z-50" onClick={closeFullscreen}>
-          <button className="absolute top-5 right-5 bg-none border-none text-white text-4xl cursor-pointer" onClick={closeFullscreen}>&times;</button>
-          <button className="absolute top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white border-none px-4 py-2.5 cursor-pointer text-2xl left-2.5" onClick={(e) => { e.stopPropagation(); navigateFullscreen('left'); }}>&#10094;</button>
-          <img src={fullscreenImage} alt="Fullscreen" onClick={(e) => e.stopPropagation()} className="max-w-[90%] max-h-[90%] object-contain" />
-          <button className="absolute top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white border-none px-4 py-2.5 cursor-pointer text-2xl right-2.5" onClick={(e) => { e.stopPropagation(); navigateFullscreen('right'); }}>&#10095;</button>
-        </div>
+      {images.length > 0 && (
+        <CustomGallery 
+          images={filteredImages}
+          columns={columns}
+          loadMore={loadMoreImages}
+          hasMore={visibleImagesCount < allExtractedImages.current.length}
+        />
       )}
     </div>
   );
